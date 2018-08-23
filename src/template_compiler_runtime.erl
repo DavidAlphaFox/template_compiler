@@ -26,6 +26,7 @@
     is_modified/3,
     compile_map_nested_value/3,
     find_nested_value/3,
+    find_nested_value/4,
     find_value/4,
     set_context_vars/2,
     get_translations/2,
@@ -54,6 +55,7 @@
 
 -callback compile_map_nested_value(Tokens :: list(), ContextVar::string(), Context :: term()) -> NewTokens :: list().
 -callback find_nested_value(Keys :: list(), TplVars :: term(), Context :: term()) -> term().
+-callback find_nested_value(BaseValue :: term(), Keys :: list(), TplVars :: term(), Context :: term()) -> term().
 -callback find_value(Key :: term(), Vars :: term(), TplVars :: map(), Context :: term()) -> term().
 
 -callback set_context_vars(map()|list(), Context::term()) -> Context::term().
@@ -131,14 +133,14 @@ compile_map_nested_value(Ts, _ContextVar, _Context) ->
 %% @doc Find a list of values at once, easier and more efficient than a nested find_value/4
 %%      Add pattern matching here for nested lookups.
 find_nested_value([K|Ks], TplVars, Context) ->
-    find_nested_value_1(find_value(K, TplVars, TplVars, Context), Ks, TplVars, Context).
+    find_nested_value(find_value(K, TplVars, TplVars, Context), Ks, TplVars, Context).
 
-find_nested_value_1(undefined, _Ks, _TplVars, _Context) ->
+find_nested_value(undefined, _Ks, _TplVars, _Context) ->
     undefined;
-find_nested_value_1(V, [], _TplVars, _Context) ->
+find_nested_value(V, [], _TplVars, _Context) ->
     V;
-find_nested_value_1(V, [K|Ks], TplVars, Context) ->
-    find_nested_value_1(find_value(K, V, TplVars, Context), Ks, TplVars, Context).
+find_nested_value(V, [K|Ks], TplVars, Context) ->
+    find_nested_value(find_value(K, V, TplVars, Context), Ks, TplVars, Context).
 
 
 %% @doc Find the value of key in some structure.
@@ -148,19 +150,45 @@ find_value(undefined, _, _TplVars, _Context) ->
 find_value(_, undefined, _TplVars, _Context) ->
     undefined;
 find_value(Name, Vars, _TplVars, _Context) when is_map(Vars) ->
-    maps:get(Name, Vars, undefined);
+    case maps:find(Name, Vars) of
+        {ok, V} -> V;
+        error when is_atom(Name) ->
+            % Maybe keys are binary
+            maps:get(atom_to_binary(Name, utf8), Vars, undefined);
+        error when is_binary(Name) ->
+            % Maybe keys are atoms
+            try
+                Name1 = binary_to_existing_atom(Name, utf8),
+                maps:get(Name1, Vars, undefined)
+            catch _:_ -> undefined
+            end;
+        error ->
+            undefined
+    end;
 find_value(Key, [{B,_}|_] = L, _TplVars, _Context) when is_list(B) ->
     proplists:get_value(z_convert:to_list(Key), L);
 find_value(Key, [{B,_}|_] = L, _TplVars, _Context) when is_binary(B) ->
     proplists:get_value(z_convert:to_binary(Key), L);
 find_value(Name, Vars, _TplVars, _Context) when is_atom(Name), is_list(Vars) ->
     proplists:get_value(Name, Vars);
+find_value(Name, [{A,_}|_] = L, _TplVars, _Context) when is_atom(A), is_binary(Name) ->
+    try
+        Name1 = binary_to_existing_atom(Name, utf8),
+        proplists:get_value(Name1, L)
+    catch _:_ -> undefined
+    end;
 find_value(Nr, Vars, _TplVars, _Context) when is_integer(Nr), is_list(Vars) ->
     try lists:nth(Nr, Vars)
     catch _:_ -> undefined
     end;
-find_value(IsoAtom, {trans, Tr}, _TplVars, _Context) ->
+find_value(IsoAtom, {trans, Tr}, _TplVars, _Context) when is_atom(IsoAtom) ->
     proplists:get_value(IsoAtom, Tr, <<>>);
+find_value(Iso, {trans, Tr}, _TplVars, _Context) when is_binary(Iso) ->
+    try
+        IsoAtom = binary_to_existing_atom(Iso, utf8),
+        proplists:get_value(IsoAtom, Tr, <<>>)
+    catch _:_ -> <<>>
+    end;
 find_value(Key, {obj, Props}, _TplVars, _Context) when is_list(Props) ->
     proplists:get_value(z_convert:to_list(Key), Props);
 find_value(Key, {obj, Props}, _TplVars, _Context) when is_list(Props) ->
@@ -172,13 +200,19 @@ find_value(Key, {struct, Props}, _TplVars, _Context) when is_list(Props) ->
     end;
 find_value(Key, Tuple, _TplVars, _Context) when is_tuple(Tuple) ->
     case element(1, Tuple) of
-        dict -> 
+        dict ->
             case dict:find(Key, Tuple) of
                 {ok, Val} -> Val;
                 _ -> undefined
             end;
         _ when is_integer(Key) ->
             try element(Key, Tuple)
+            catch _:_ -> undefined
+            end;
+        _ when is_binary(Key) ->
+            try
+                Key1 = binary_to_integer(Key),
+                element(Key1, Tuple)
             catch _:_ -> undefined
             end;
         _ ->
@@ -228,7 +262,7 @@ custom_tag(Tag, Args, Vars, Context) ->
     Tag:render(Args, Vars, Context).
 
 
-%% @doc Render image/image_url/media/url/lib tag. The Expr is the media item or dispatch rule.
+%% @doc Render image/image_url/media/url/lib/lib_url tag. The Expr is the media item or dispatch rule.
 -spec builtin_tag(template_compiler:builtin_tag(), Expr::term(), Args::list(), Vars::map(), Context::term()) -> 
             template_compiler:render_result().
 builtin_tag(_Tag, _Expr, _Args, _Vars, _Context) ->
