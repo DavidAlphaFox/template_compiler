@@ -360,7 +360,7 @@ cs(Module, Filename, Options, Context) ->
         context_vars=get_option(context_vars, Options),
         context=Context
     }.
-
+%% 从这里开始将模板内的信息转化成可执行的函数
 compile_tokens({ok, {extends, {string_literal, _, Extend}, Elements}}, CState) ->
     Blocks = find_blocks(Elements),
     {Ws, BlockAsts} = compile_blocks(Blocks, CState),
