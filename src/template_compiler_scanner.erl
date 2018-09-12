@@ -118,7 +118,7 @@ identifier_to_keyword({identifier, Pos, String}, {_PrevToken, Acc}) ->
 identifier_to_keyword({Type, Pos, String}, {_PrevToken, Acc}) ->
     {Type, [{Type, Pos, String}|Acc]}.
     
-
+%% 整体已经扫面完了的各种情况
 scan(<<>>, Scanned, _, in_text) ->
     {_Token, ScannedKeyword} = lists:foldr(fun identifier_to_keyword/2, {'$eof', []}, Scanned),
     {ok, lists:reverse(ScannedKeyword)};
@@ -218,14 +218,14 @@ scan(<<_/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_comment, Close
 scan(<<"<!--{%", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, [{open_tag, {SourceRef, Row, Column}, <<"<!--{%">>} | Scanned], 
         {SourceRef, Row, Column + 6}, {in_code, <<"%}-->">>});
-
+%% 扫描到code开始的标记后，需要进入in_code模式，并且寻找配对的tag
 scan(<<"{%", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, [{open_tag, {SourceRef, Row, Column}, <<"{%">>} | Scanned], 
         {SourceRef, Row, Column + 2}, {in_code, <<"%}">>});
 
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_trans, Closer}) ->
     scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_trans, Closer});
-
+%% 在普通字符串扫描模式下，换行会被添加到字符串的末尾
 scan(<<"\r\n", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     Scanned1 = append_text_char(Scanned, {SourceRef, Row, Column}, $\r),
     Scanned2 = append_text_char(Scanned1, {SourceRef, Row, Column}, $\n),
@@ -233,13 +233,13 @@ scan(<<"\r\n", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
 
 scan(<<"\n", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, append_text_char(Scanned, {SourceRef, Row, Column}, $\n), {SourceRef, Row + 1, 1}, in_text);
-
+%% 代码模式下，换行会被直接忽略
 scan(<<"\r\n", T/binary>>, Scanned, {SourceRef, Row, _Column}, {in_code, Closer}) ->
     scan(T, Scanned, {SourceRef, Row + 1, 1}, {in_code, Closer});
 
 scan(<<"\n", T/binary>>, Scanned, {SourceRef, Row, _Column}, {in_code, Closer}) ->
     scan(T, Scanned, {SourceRef, Row + 1, 1}, {in_code, Closer});
-
+%% 普通模式扫描字符串
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, append_text_char(Scanned, {SourceRef, Row, Column}, H), {SourceRef, Row, Column + 1}, in_text);
 
@@ -286,7 +286,7 @@ scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_back_quote_sla
     scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_back_quote, Closer});
 
 
-
+%% 默认切换回in_code模式
 % end quote
 scan(<<"\"", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_double_quote, Closer}) ->
     scan(T, Scanned, {SourceRef, Row, Column + 1}, {in_code, Closer});
@@ -297,7 +297,7 @@ scan(<<"\'", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_single_quote, Cl
 
 scan(<<"`", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_back_quote, Closer}) ->
     scan(T, Scanned, {SourceRef, Row, Column + 1}, {in_code, Closer});
-
+%% 在引号模式下，依然是添加为text
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_double_quote, Closer}) ->
     scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_double_quote, Closer});
 
@@ -426,7 +426,7 @@ scan(<<"}", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, Closer}) ->
 
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     case char_type(H) of
-        letter_underscore ->
+        letter_underscore -> %% 小写字母开头的
             scan(T, [{identifier, {SourceRef, Row, Column}, <<H/utf8>>} | Scanned], {SourceRef, Row, Column + 1}, {in_identifier, Closer});
         digit ->
             scan(T, [{number_literal, {SourceRef, Row, Column}, <<H/utf8>>} | Scanned], {SourceRef, Row, Column + 1}, {in_number, Closer});
@@ -444,7 +444,7 @@ scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_number, Closer
 
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_identifier, Closer}) ->
     case char_type(H) of
-        letter_underscore ->
+        letter_underscore -> %% 如果是标识符或数字就不断增加内容
             scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_identifier, Closer});
         digit ->
             scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_identifier, Closer});
@@ -461,7 +461,7 @@ scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_identifier, Cl
 
 append_char([{Token, Pos, String} | Rest], Char) ->
     [{Token, Pos, <<String/binary, Char/utf8>>} | Rest].
-
+%% 如果上一个被扫描的字符是普通字符，那么就合并text
 append_text_char([], {SourceRef, Row, Column}, Char) ->
     [{text, {SourceRef, Row, Column}, <<Char/utf8>>}];
 append_text_char([{text, Pos, Text} | Scanned1], _SourceRef, Char) ->
