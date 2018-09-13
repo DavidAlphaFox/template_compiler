@@ -26,7 +26,7 @@
 -include_lib("syntax_tools/include/merl.hrl").
 -include("template_compiler.hrl").
 -include("template_compiler_internal.hrl").
-
+%% 对元素进行编译
 -spec compile(element()|elements(), #cs{}, #ws{}) -> {#ws{}, erl_syntax:syntaxTree()}.
 compile([], _CState, Ws) ->
     {Ws, erl_syntax:abstract(<<>>)};

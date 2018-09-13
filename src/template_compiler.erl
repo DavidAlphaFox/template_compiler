@@ -362,7 +362,7 @@ cs(Module, Filename, Options, Context) ->
     }.
 %% 从这里开始将模板内的信息转化成可执行的函数
 compile_tokens({ok, {extends, {string_literal, _, Extend}, Elements}}, CState) ->
-    Blocks = find_blocks(Elements),
+    Blocks = find_blocks(Elements), %% 知道所有block标签
     {Ws, BlockAsts} = compile_blocks(Blocks, CState),
     {ok, {Extend, BlockAsts, undefined, Ws#ws.is_autoid_var}};
 compile_tokens({ok, {overrules, Elements}}, CState) ->
@@ -393,14 +393,14 @@ compile_blocks(Blocks, CState) ->
 %% @doc Compile a block definition to a function name and its body elements.
 -spec compile_block(block_element(), #cs{}, #ws{}) -> {#ws{}, {atom(), erl_syntax:syntaxTree(), #ws{}}}.
 compile_block({block, {identifier, _Pos, Name}, Elts}, CState, Ws) ->
-    BlockName = template_compiler_utils:to_atom(Name),
+    BlockName = template_compiler_utils:to_atom(Name), %% 将block的名字，编译成atom
     {Ws1, Body} = template_compiler_element:compile(Elts, CState#cs{block=BlockName}, reset_block_ws(Ws)),
     {Ws1, {BlockName, Body, Ws1}}.
 
 reset_block_ws(Ws) ->
     Ws#ws{is_forloop_var=false}.
 
-
+%% 寻找所有block的element
 %% @doc Extract all block definitions from the parse tree, returns deepest nested blocks first
 find_blocks(Elements) ->
     find_blocks(Elements, []).
