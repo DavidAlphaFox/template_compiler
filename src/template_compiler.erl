@@ -78,7 +78,7 @@
     translation_message/0
 ]).
 
-
+%% 对模版进行渲染
 %% @doc Render a template. This looks up the templates needed, ensures compilation and
 %%      returns the rendering result.
 -spec render(Template :: template(), Vars :: map() | list(), Options :: options(), Context :: term()) ->
@@ -87,7 +87,7 @@ render(Template, Vars, Options, Context) when is_list(Vars) ->
     render(Template, props_to_map(Vars, #{}), Options, Context);
 render(Template0, Vars, Options, Context) when is_map(Vars) ->
     Template = normalize_template(Template0),
-    Runtime = proplists:get_value(runtime, Options, template_compiler_runtime),
+    Runtime = proplists:get_value(runtime, Options, template_compiler_runtime),%% 模版引擎默认的runtime
     case block_lookup(Runtime:map_template(Template, Vars, Context), #{}, [], [], Options, Vars, Runtime, Context) of
         {ok, BaseModule, ExtendsStack, BlockMap, OptDebugWrap} ->
             % Start with the render function of the "base" template
@@ -316,7 +316,7 @@ translations(Filename) ->
     end.
 
 %%%% --------------------------------- Internal ----------------------------------
-
+%%% 模版名字是tpl_开头外加16进制的小写字符串组成的
 module_name(Runtime, SpecialContextArgs, Tokens) ->
     Tokens1 = remove_srcpos(Tokens),
     TokenChecksum = crypto:hash(sha, term_to_binary({?COMPILER_VERSION, Runtime, SpecialContextArgs, Tokens1})),

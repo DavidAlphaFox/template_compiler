@@ -26,12 +26,12 @@
 -include_lib("syntax_tools/include/merl.hrl").
 -include("template_compiler.hrl").
 -include("template_compiler_internal.hrl").
-
+%% 将模版编译成模块
 compile(Module, Filename, Mtime, IsAutoid, Runtime, Extends, BlockAsts, undefined) ->
     compile(Module, Filename, Mtime, IsAutoid, Runtime, Extends, BlockAsts, erl_syntax:abstract(<<>>));
 compile(Module, Filename, Mtime, IsAutoid, Runtime, Extends, BlockAsts, TemplateAst) ->
     Now = os:timestamp(),
-    BlockNames = [ BN || {BN, _Tree, _Ws} <- BlockAsts ],
+    BlockNames = [ BN || {BN, _Tree, _Ws} <- BlockAsts ], %% 主要生成render函数，直接将模版的AST生成到代码中
     Forms = lists:flatten(
         ?Q(["-module('@Module@').",
             "-export([",
@@ -58,7 +58,7 @@ compile(Module, Filename, Mtime, IsAutoid, Runtime, Extends, BlockAsts, Template
             "'@_functions'() -> _."
             ],
             [
-                {functions, blocksfun(BlockAsts)}
+                {functions, blocksfun(BlockAsts)} %%每个block都会生成一个render_block函数
             ])),
     [
         merl:quote(1, "-file(\""++unicode:characters_to_list(Filename)++"\", 1).")

@@ -93,7 +93,7 @@ map_template({cat, Template, _}, Vars, Context) ->
     map_template(Template, Vars, Context);
 map_template(Template, _Vars, _Context) ->
     case application:get_env(template_compiler, template_dir) of
-        {ok, {App, SubDir}} when is_atom(App) ->
+        {ok, {App, SubDir}} when is_atom(App) -> %% 模版默认在应用的priv目录下
             case code:priv_dir(App) of
                 {error, _} = Error ->
                     Error;
@@ -103,7 +103,7 @@ map_template(Template, _Vars, _Context) ->
                         filename=filename:join([PrivDir, SubDir, Template])
                     }}
             end;
-        {ok, Dir} when is_list(Dir); is_binary(Dir) ->
+        {ok, Dir} when is_list(Dir); is_binary(Dir) ->%% 直接制定目录了，那么这个应该是据对目录了
             {ok, #template_file{
                 template=Template, 
                 filename=filename:join([Dir, Template])
