@@ -175,11 +175,11 @@ normalize_template({cat, Template, IsA}) when is_list(Template) ->
     {cat, unicode:characters_to_binary(Template), IsA};
 normalize_template({overrules, Template, Filename}) when is_list(Template) ->
     {overrules, unicode:characters_to_binary(Template), Filename}.
-
+%% 递归寻找扩展
 %% @doc Recursive lookup of blocks via the extends-chain of a template.
 block_lookup({ok, TplFile}, BlockMap, ExtendsStack, DebugTrace, Options, Vars, Runtime, Context) ->
     Trace = Runtime:trace_render(TplFile#template_file.filename, Options, Context),
-    case template_compiler_admin:lookup(TplFile#template_file.filename, Options, Context) of
+    case template_compiler_admin:lookup(TplFile#template_file.filename, Options, Context) of %% 寻找编译国的module，如果没编译就编译一次
         {ok, Module} ->
             case lists:member(Module, ExtendsStack) of
                 true ->
