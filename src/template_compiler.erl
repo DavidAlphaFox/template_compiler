@@ -124,7 +124,7 @@ render_block(Block, Template0, Vars, Options, Context) when is_map(Vars) ->
                     of
                         true ->
                             Vars#{
-                                '$autoid' => template_compiler_runtime_internal:unique()
+                                '$autoid' => template_compiler_runtime_internal:unique() %% 生成唯一的ID
                             };
                         false ->
                             Vars
@@ -179,16 +179,16 @@ normalize_template({overrules, Template, Filename}) when is_list(Template) ->
 %% @doc Recursive lookup of blocks via the extends-chain of a template.
 block_lookup({ok, TplFile}, BlockMap, ExtendsStack, DebugTrace, Options, Vars, Runtime, Context) ->
     Trace = Runtime:trace_render(TplFile#template_file.filename, Options, Context),
-    case template_compiler_admin:lookup(TplFile#template_file.filename, Options, Context) of %% 寻找编译国的module，如果没编译就编译一次
+    case template_compiler_admin:lookup(TplFile#template_file.filename, Options, Context) of %% 寻找编译过的module，如果没编译就编译一次
         {ok, Module} ->
-            case lists:member(Module, ExtendsStack) of
+            case lists:member(Module, ExtendsStack) of %% 如果Module是Extends的成员，就报错，因为是循环依赖
                 true ->
                     FileTrace = [Module:filename() | [ M:filename() || M <- ExtendsStack ]],
                     lager:error("[template_compiler] Template recursion: ~p", [FileTrace]),
                     {error, {recursion, Trace}};
-                false ->
+                false -> %% 并不是extands的成员，
                     % Check extended/overruled templates (build block map)
-                    BlockMap1 = add_blocks(Module:blocks(), Module, BlockMap),
+                    BlockMap1 = add_blocks(Module:blocks(), Module, BlockMap),%% 记录使用该block的Module
                     case Module:extends() of
                         undefined ->
                             {ok, Module, ExtendsStack, BlockMap1, [Trace|DebugTrace]};
