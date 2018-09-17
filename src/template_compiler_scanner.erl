@@ -120,6 +120,7 @@ identifier_to_keyword({Type, Pos, String}, {_PrevToken, Acc}) ->
     
 %% 整体已经扫面完了的各种情况
 scan(<<>>, Scanned, _, in_text) ->
+    %% 在整个文件都遍历完之后，将identifier转化为atom
     {_Token, ScannedKeyword} = lists:foldr(fun identifier_to_keyword/2, {'$eof', []}, Scanned),
     {ok, lists:reverse(ScannedKeyword)};
 
@@ -169,7 +170,7 @@ scan(<<"\n", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_raw, Closer}) ->
 
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_raw, Closer}) ->
     scan(T, append_text_char(Scanned, {SourceRef, Row, Column}, H), {SourceRef, Row, Column + 1}, {in_raw, Closer});
-
+%% in_text是最开始的模式
 scan(<<"<!--{{", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, [{open_var, {SourceRef, Row, Column}, <<"<!--{{">>} | Scanned], {SourceRef, Row, Column + 6}, {in_code, <<"}}-->">>});
 
@@ -306,8 +307,8 @@ scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_single_quote, 
 
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_back_quote, Closer}) ->
     scan(T, append_char(Scanned, H), {SourceRef, Row, Column + 1}, {in_back_quote, Closer});
-
-% Closing code blocks
+%% 连续比较两个Token，如果第一个Token是open_tag，另一个是"raw"，代表进入原始代码模式，需要寻找endraw
+% Closing code blocks 
 scan(<<"%}-->", T/binary>>, [{identifier, _, <<"raw">>}, {open_tag, _, <<"<!--{%">>}|Scanned], {SourceRef, Row, Column}, {_, <<"%}-->">>}) ->
     scan(T, Scanned, {SourceRef, Row, Column + 5}, {in_raw, <<"<!--{% endraw %}-->">>});
 
@@ -325,8 +326,8 @@ scan(<<"}}-->", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, <<"}}-->">>})
 
 scan(<<"}}", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, <<"}}">>}) ->
     scan(T, [{close_var, {SourceRef, Row, Column}, <<"}}">>} | Scanned], {SourceRef, Row, Column + 2}, in_text);
-
-% Expression operators
+%% 只要是在有closer的状态下，都会自动切换到in_code模式
+% Expression operators 
 scan(<<"==", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, Closer}) ->
     scan(T, [{'==', {SourceRef, Row, Column}, <<"==">>} | Scanned], {SourceRef, Row, Column + 2}, {in_code, Closer});
 
@@ -423,17 +424,17 @@ scan(<<"{", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, Closer}) ->
 
 scan(<<"}", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, Closer}) ->
     scan(T, [{close_curly, {SourceRef, Row, Column}, <<"}">>} | Scanned], {SourceRef, Row, Column + 1}, {in_code, Closer});
-
+%% 在代码模式下，如果扫描到小字母开头的字符，就会被认为是identifier
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     case char_type(H) of
-        letter_underscore -> %% 小写字母开头的
+        letter_underscore -> %% 小写字母开头的是identifier
             scan(T, [{identifier, {SourceRef, Row, Column}, <<H/utf8>>} | Scanned], {SourceRef, Row, Column + 1}, {in_identifier, Closer});
         digit ->
             scan(T, [{number_literal, {SourceRef, Row, Column}, <<H/utf8>>} | Scanned], {SourceRef, Row, Column + 1}, {in_number, Closer});
         _ ->
             {error, io_lib:format("Illegal character ~s:~p column ~p", [SourceRef, Row, Column])}
     end;
-
+%% 扫描数字
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_number, Closer}) ->
     case char_type(H) of
         digit ->
@@ -441,7 +442,7 @@ scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_number, Closer
         _ ->
             {error, io_lib:format("Illegal character ~s:~p column ~p", [SourceRef, Row, Column])}
     end;
-
+%% 前一个字符被判定为identifier后，后续的字符也被认为是identifier
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, {in_identifier, Closer}) ->
     case char_type(H) of
         letter_underscore -> %% 如果是标识符或数字就不断增加内容
