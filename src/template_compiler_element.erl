@@ -149,7 +149,7 @@ compile({block, {identifier, SrcPos, Name}, _Elts}, CState, Ws) ->
                 erl_syntax:variable("Blocks"),
                 erl_syntax:atom(CState#cs.runtime),
                 erl_syntax:variable(CState#cs.context_var)
-            ]),
+            ]),%% 生成template_compiler_runtime_internal:block_call的代码
     {value, {BlockName, _Tree, BlockWs}} = lists:keysearch(BlockName, 1, CState#cs.blocks), 
     Ws1 = Ws#ws{is_forloop_var = Ws#ws.is_forloop_var or BlockWs#ws.is_forloop_var}, 
     {Ws1, template_compiler_utils:set_pos(SrcPos, Ast)};
