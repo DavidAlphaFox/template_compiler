@@ -89,15 +89,15 @@ render(Template0, Vars, Options, Context) when is_map(Vars) ->
     Template = normalize_template(Template0),
     Runtime = proplists:get_value(runtime, Options, template_compiler_runtime),%% 模版引擎默认的runtime
     case block_lookup(Runtime:map_template(Template, Vars, Context), #{}, [], [], Options, Vars, Runtime, Context) of
-        {ok, BaseModule, ExtendsStack, BlockMap, OptDebugWrap} ->
+        {ok, BaseModule, ExtendsStack, BlockMap, OptDebugWrap} -> %% BlockMap记录了所有的继承模版中的block
             % Start with the render function of the "base" template
             % Optionally add the unique prefix for this rendering.
             Vars1 = case BaseModule:is_autoid()
                         orelse lists:any(fun(M) -> M:is_autoid() end, ExtendsStack)
                     of
-                        true ->
+                        true -> %% 根模版是自动生成ID，或者任何一个子模版是自动生成ID，则在Vars中添加¥autoid
                             Vars#{
-                                '$autoid' => template_compiler_runtime_internal:unique()
+                                '$autoid' => template_compiler_runtime_internal:unique() %% 生成一个11位的字符串
                             };
                         false ->
                             Vars
@@ -189,15 +189,15 @@ block_lookup({ok, TplFile}, BlockMap, ExtendsStack, DebugTrace, Options, Vars, R
                 false -> %% 并不是extands的成员，
                     % Check extended/overruled templates (build block map)
                     BlockMap1 = add_blocks(Module:blocks(), Module, BlockMap),%% 记录使用该block的Module
-                    case Module:extends() of
-                        undefined ->
+                    case Module:extends() of %% 得到这个module是继承自哪个模版
+                        undefined -> %% 一直到最后的一个模版，也就是根模版
                             {ok, Module, ExtendsStack, BlockMap1, [Trace|DebugTrace]};
                         overrules ->
                             Template = TplFile#template_file.template,
                             Next = Runtime:map_template({overrules, Template, Module:filename()}, Vars, Context),
                             block_lookup(Next, BlockMap1, [Module|ExtendsStack], [Trace|DebugTrace], Options, Vars, Runtime, Context);
                         Extends when is_binary(Extends) ->
-                            Next = Runtime:map_template(Extends, Vars, Context),
+                            Next = Runtime:map_template(Extends, Vars, Context), %% 翻译成template_file的record
                             block_lookup(Next, BlockMap1, [Module|ExtendsStack], [Trace|DebugTrace], Options, Vars, Runtime, Context)
                     end
             end;
@@ -465,7 +465,7 @@ unescape_trim(Text) ->
     Unescaped = template_compiler_utils:unescape_string_literal(Text),
     z_string:trim(Unescaped).
 
-
+%% 需要进行翻译的text
 expand_translation({trans_text, SrcPos, Text}, Runtime, Context) ->
     case Runtime:get_translations(Text, Context) of
         {trans, _} = Tr -> {trans_text, SrcPos, Tr};

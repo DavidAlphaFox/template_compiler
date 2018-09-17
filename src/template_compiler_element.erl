@@ -649,7 +649,7 @@ compile({cycle, {_, SrcPos, _} = TagSrc, Exprs}, CState, Ws) ->
     io:format("~n~n~p~n~n", [Ast]),
     compile({value, TagSrc, {ast, Ast}, []}, CState, Ws2#ws{is_forloop_var=true}).
 
-
+%% include 函数
 include({_, SrcPos, _}, Method, Template, ArgsList, IsContextVars, #cs{runtime=Runtime} = CState, Ws) when is_atom(Method) ->
     {Ws1, TemplateAst} = template_compiler_expr:compile(Template, CState, Ws),
     ArgsListAst = erl_syntax:list([ erl_syntax:tuple([A,B]) || {A,B} <- ArgsList ]),

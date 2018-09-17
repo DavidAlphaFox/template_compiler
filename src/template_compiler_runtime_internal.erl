@@ -168,7 +168,7 @@ block_inherit(SrcPos, Module, Block, Vars, BlockMap, Runtime, Context) ->
             <<>>
     end.
 
-
+%% 一个模版对另一个模版进行包含
 %% @doc Include a template.
 -spec include({File::binary(), Line::integer(), Col::integer()}, normal|optional|all, 
         template_compiler:template(), list({atom(),term()}), atom(), list(binary()), boolean(), map(), term()) -> 
