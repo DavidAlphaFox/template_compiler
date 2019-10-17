@@ -56,7 +56,7 @@
 %%--------------------------------------------------------------------
 scan(Template) when is_binary(Template) ->
     scan(undefined, Template).
-
+%% 扫描开始，默认都是in_text
 scan(SourceRef, Template) when is_list(Template) ->
     scan(SourceRef, unicode:characters_to_binary(Template));
 scan(SourceRef, Template) when is_binary(Template) ->
@@ -234,34 +234,34 @@ scan(<<"\r\n", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
 
 scan(<<"\n", T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, append_text_char(Scanned, {SourceRef, Row, Column}, $\n), {SourceRef, Row + 1, 1}, in_text);
-%% 代码模式下，换行会被直接忽略
+%% in_code，换行会被直接忽略
 scan(<<"\r\n", T/binary>>, Scanned, {SourceRef, Row, _Column}, {in_code, Closer}) ->
     scan(T, Scanned, {SourceRef, Row + 1, 1}, {in_code, Closer});
-
+%% in_code，换行会被直接忽略
 scan(<<"\n", T/binary>>, Scanned, {SourceRef, Row, _Column}, {in_code, Closer}) ->
     scan(T, Scanned, {SourceRef, Row + 1, 1}, {in_code, Closer});
 %% 普通模式扫描字符串
 scan(<<H/utf8, T/binary>>, Scanned, {SourceRef, Row, Column}, in_text) ->
     scan(T, append_text_char(Scanned, {SourceRef, Row, Column}, H), {SourceRef, Row, Column + 1}, in_text);
-
+%% in_code，普通字符串
 scan(<<$", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     scan(T, [{string_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_double_quote, Closer});
-
+%% in_code，转译字符串
 scan(<<"_\"", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     scan(T, [{trans_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_double_quote, Closer});
 
 scan(<<$", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_identifier, Closer}) ->
     scan(T, [{string_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_double_quote, Closer});
-
+%% in_code，普通字符
 scan(<<$', T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     scan(T, [{string_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_single_quote, Closer});
-
+%% in_code，转译字符
 scan(<<"_\'", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     scan(T, [{trans_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_single_quote, Closer});
 
 scan(<<$', T/binary>>, Scanned, {SourceRef, Row, Column}, {in_identifier, Closer}) ->
     scan(T, [{string_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_single_quote, Closer});
-
+%% in_code，普通字符
 scan(<<"`", T/binary>>, Scanned, {SourceRef, Row, Column}, {in_code, Closer}) ->
     scan(T, [{atom_literal, {SourceRef, Row, Column}, <<>>} | Scanned], {SourceRef, Row, Column + 1}, {in_back_quote, Closer});
 
@@ -317,7 +317,7 @@ scan(<<"%}-->", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, <<"%}-->">>})
 
 scan(<<"%}", T/binary>>, [{identifier, _, <<"raw">>}, {open_tag, _, <<"{%">>}|Scanned], {SourceRef, Row, Column}, {_, <<"%}">>}) ->
     scan(T, Scanned, {SourceRef, Row, Column + 2}, {in_raw, <<"{% endraw %}">>});
-
+%% 正常close一个tag
 scan(<<"%}", T/binary>>, Scanned, {SourceRef, Row, Column}, {_, <<"%}">>}) ->
     scan(T, [{close_tag, {SourceRef, Row, Column}, <<"%}">>} | Scanned], {SourceRef, Row, Column + 2}, in_text);
 
