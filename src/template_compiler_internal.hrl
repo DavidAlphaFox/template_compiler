@@ -20,7 +20,7 @@
 %% @doc Increment this with compiler bug fixes
 -define(COMPILER_VERSION, 1).
 
--type linecol() :: {Line::integer(), Column::integer(), filename:filename()}.
+-type linecol() :: {Line::integer(), Column::integer(), file:filename_all()}.
 
 -type token() :: {atom(), linecol(), term()}
                | identifier_token().
@@ -60,4 +60,11 @@
         context_vars = [] :: list(binary()),
         is_autoescape = false :: boolean()
     }).
+
+
+-ifdef(fun_stacktrace).
+-define(WITH_STACKTRACE(T, R, S), T:R -> S = erlang:get_stacktrace(),).
+-else.
+-define(WITH_STACKTRACE(T, R, S), T:R:S ->).
+-endif.
 
