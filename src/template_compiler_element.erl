@@ -406,7 +406,7 @@ compile({'if', {'as', {_, SrcPos, _}, Expr, {identifier, _Pos, Name} = Ident}, I
                     "true -> "
                         "_@vars1 = _@vars#{ _@name => _@v },"
                         "_@context1 = _@runtime:set_context_vars(_@vars1),"
-                        "_@ifclause;",
+                        "_@ifclause;"
                     "false -> _@elseclause "
                   "end "
                 "end",
@@ -714,8 +714,8 @@ expr_list(ExprList, CState, Ws) ->
         ExprList).
 
 
-is_context_vars_arg({{identifier, _, Ident}, _Val}, CState) ->
-    lists:member(Ident, CState#cs.context_vars);
+% is_context_vars_arg({{identifier, _, Ident}, _Val}, CState) ->
+%    lists:member(Ident, CState#cs.context_vars);
 is_context_vars_arg(Args, CState) when is_list(Args) ->
     lists:any(
             fun
