@@ -360,7 +360,7 @@ EndScriptBraced -> open_tag endjavascript_keyword close_tag.
 
 Filters -> Filter : ['$1'].
 Filters -> Filters pipe Filter : '$1' ++ ['$3'].
-
+%% for 语句
 ForBlock -> ForBraced Elements EndForBraced : {for, '$1', '$2', []}.
 ForBlock -> ForBraced Elements EmptyBraced Elements EndForBraced : {for, '$1', '$2', '$4'}.
 EmptyBraced -> open_tag empty_keyword close_tag.

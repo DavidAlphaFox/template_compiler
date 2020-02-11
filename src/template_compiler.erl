@@ -96,7 +96,7 @@ render(Template0, Vars, Options, Context) when is_map(Vars) ->
             Vars1 = case BaseModule:is_autoid()
                         orelse lists:any(fun(M) -> M:is_autoid() end, ExtendsStack)
                     of
-                        true -> %% 根模版是自动生成ID，或者任何一个子模版是自动生成ID，则在Vars中添加¥autoid
+                        true -> %% 根模版是自动生成ID，或者任何一个子模版是自动生成ID，则在Vars中添加$autoid
                             Vars#{
                                 '$autoid' => template_compiler_runtime_internal:unique() %% 生成一个11位的字符串
                             };
