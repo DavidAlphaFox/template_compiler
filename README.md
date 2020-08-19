@@ -116,7 +116,7 @@ How to use
 
 Render a template to an iolist:
 
-    Vars = #{ a => 1 },                 % Template variables, use a map
+    Vars = #{ <<"a">> => 1 },                 % Template variables, use a map
     Options = [],                       % Render and compilation options
     Context = your_request_context,     % Context passed to the runtime module and filters
     {ok, IOList} = template_compiler:render("hello.tpl", Vars, Options, Context).
@@ -175,14 +175,31 @@ Instead of strings, variables can also be objects that contain attributes. To ac
 The `article` could have been passed as a proplist or map in the _Vars_ for the template render function:
 
     #{
-        article => #{
-            title => <<"My title"/utf8>>,
-            author => #{
-                id => 1234,
-                last_name => <<"Janssen">>
+        <<"article">> => #{
+            <<"title">> => <<"My title"/utf8>>,
+            <<"author">> => #{
+                <<"id">> => 1234,
+                <<"last_name">> => <<"Janssen">>
             }
         }
     }.
+
+
+Values and expressions
+----------------------
+
+Expressions can use different values types:
+
+ * Variables (see above)
+ * Number: `123`
+ * String: `"hello"` or `'hello'`
+ * Translatable string: `_"Hello"` (see below)
+ * List:  `[ 1, 2, 3 ]`
+ * Map, using Elixir syntax: `%{ a: 1, b: 2 }` where the keys will become binary strings
+   equivalent to the Erlang map: `#{ <<"a">> => 1, <<"b">> => 2 }`
+ * Erlang atom: <tt>&grave;a&grave;</tt> (quoted using backticks)
+ * Tagged value list: `{mytag a=1 b=2}`, this translates to Erlang `{mytag, [{a,1}, {b,2}]}`
+ * Unique generated id: `#foo` - an unique prefix is used for each template
 
 
 Translatable texts

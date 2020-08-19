@@ -55,6 +55,7 @@
 
 -type builtin_tag() :: image
                      | image_url
+                     | image_data_url
                      | media
                      | url
                      | lib.
@@ -104,6 +105,8 @@ render(Template0, Vars, Options, Context) when is_map(Vars) ->
                             Vars
                     end,
             {ok, maybe_wrap(BaseModule:render(Vars1, BlockMap, Context), OptDebugWrap)};
+        {error, {Loc, template_compiler_parser, S}} ->
+            {error, {Loc, template_compiler_parser, iolist_to_binary(S)}};
         {error, _} = Error ->
             Error
     end.
@@ -132,6 +135,8 @@ render_block(Block, Template0, Vars, Options, Context) when is_map(Vars) ->
                     end,
             % Render the specific block
             {ok, template_compiler_runtime_internal:block_call({<<>>,1,1}, Block, Vars1, BlockMap, Runtime, Context)};
+        {error, {Loc, template_compiler_parser, S}} ->
+            {error, {Loc, template_compiler_parser, iolist_to_binary(S)}};
         {error, _} = Error ->
             Error
     end.
@@ -221,8 +226,6 @@ add_blocks([Block|Blocks], Module, BlockMap) ->
 -spec get_option(Option :: atom(), Options :: options()) -> term().
 get_option(runtime, Options) ->
     proplists:get_value(runtime, Options, template_compiler_runtime);
-get_option(context_name, Options) ->
-    proplists:get_value(context_name, Options, undefined);
 get_option(context_vars, Options) ->
     proplists:get_value(context_vars, Options, []).
 

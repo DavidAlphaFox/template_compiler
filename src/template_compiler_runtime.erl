@@ -1,9 +1,9 @@
 %% @author Marc Worrell <marc@worrell.nl>
-%% @copyright 2016 Marc Worrell
+%% @copyright 2016-2020 Marc Worrell
 %% @doc Simple runtime for the compiled templates. Needs to be
 %%      copied and adapted for different environments.
 
-%% Copyright 2016 Marc Worrell
+%% Copyright 2016-2020 Marc Worrell
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
     find_nested_value/3,
     find_nested_value/4,
     find_value/4,
+    get_context_name/1,
     set_context_vars/2,
     get_translations/2,
     lookup_translation/3,
@@ -58,6 +59,7 @@
 -callback find_nested_value(BaseValue :: term(), Keys :: list(), TplVars :: term(), Context :: term()) -> term().
 -callback find_value(Key :: term(), Vars :: term(), TplVars :: map(), Context :: term()) -> term().
 
+-callback get_context_name(Context::term()) -> atom().
 -callback set_context_vars(map()|list(), Context::term()) -> Context::term().
 
 -callback get_translations(Text :: binary(), Context :: term()) -> binary() | {trans, [{atom(), binary()}]}.
@@ -165,6 +167,12 @@ find_value(Name, Vars, _TplVars, _Context) when is_map(Vars) ->
         error ->
             undefined
     end;
+find_value(Name, [ V | _ ] = Vars, _TplVars, _Context) when is_binary(Name), is_atom(V) ->
+    try
+        Atom = binary_to_existing_atom(Name, utf8),
+        proplists:get_value(Atom, Vars)
+    catch _:_ -> undefined
+    end;
 find_value(Key, [{B,_}|_] = L, _TplVars, _Context) when is_list(B) ->
     proplists:get_value(z_convert:to_list(Key), L);
 find_value(Key, [{B,_}|_] = L, _TplVars, _Context) when is_binary(B) ->
@@ -237,6 +245,19 @@ find_value_dict( Key, Dict ) ->
     end.
 
 
+%% @doc Set the context name for this context, used for flush or recompile all templates
+%%      beloging to a certain context (like a single site).
+-spec get_context_name( term() ) -> atom().
+get_context_name(Context) when is_map(Context) ->
+    maps:get(context_name, Context, undefined);
+get_context_name(Context) when is_list(Context) ->
+    proplists:get_value(context_name, Context, undefined);
+get_context_name(Context) when is_atom(Context) ->
+    Context;
+get_context_name(_) ->
+    undefined.
+
+
 %% @doc Set any contextual arguments from the map or argument list. User for sudo/anondo and language settings
 -spec set_context_vars(map()|list(), term()) -> term().
 set_context_vars(Args, Context) when is_map(Args); is_list(Args) ->
@@ -271,7 +292,8 @@ custom_tag(Tag, Args, Vars, Context) ->
     Tag:render(Args, Vars, Context).
 
 
-%% @doc Render image/image_url/media/url/lib/lib_url tag. The Expr is the media item or dispatch rule.
+%% @doc Render image/image_url/image_data_url/media/url/lib/lib_url tag.
+%%      The Expr is the media item or dispatch rule.
 -spec builtin_tag(template_compiler:builtin_tag(), Expr::term(), Args::list(), Vars::map(), Context::term()) -> 
             template_compiler:render_result().
 builtin_tag(_Tag, _Expr, _Args, _Vars, _Context) ->

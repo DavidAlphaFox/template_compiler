@@ -140,13 +140,18 @@ Nonterminals
     PrintTag
     ImageTag
     ImageUrlTag
+    ImageDataUrlTag
     MediaTag
     TransTag
     TransExtTag
     ValueList
     OptArrayList
     ArrayList
-    
+
+    MapFieldList
+    MapFields
+    MapField
+
     OptionalPrefix
     OptionalAll
 
@@ -197,6 +202,7 @@ Terminals
     ifnotequal_keyword
     image_keyword
     image_url_keyword
+    image_data_url_keyword
     in_keyword
     include_keyword
     inherit_keyword
@@ -297,6 +303,7 @@ Elements -> Elements UrlTag : '$1' ++ ['$2'].
 Elements -> Elements PrintTag : '$1' ++ ['$2'].
 Elements -> Elements ImageTag : '$1' ++ ['$2'].
 Elements -> Elements ImageUrlTag : '$1' ++ ['$2'].
+Elements -> Elements ImageDataUrlTag : '$1' ++ ['$2'].
 Elements -> Elements MediaTag : '$1' ++ ['$2'].
 
 
@@ -431,6 +438,7 @@ CallWithTag -> open_tag call_keyword identifier with_keyword E close_tag : {call
 
 ImageTag -> open_tag image_keyword E Args close_tag : {image, '$2', '$3', '$4' }.
 ImageUrlTag -> open_tag image_url_keyword E Args close_tag : {image_url, '$2', '$3', '$4' }.
+ImageDataUrlTag -> open_tag image_data_url_keyword E Args close_tag : {image_data_url, '$2', '$3', '$4' }.
 MediaTag -> open_tag media_keyword E Args close_tag : {media, '$2', '$3', '$4' }.
 
 UrlTag -> open_tag url_keyword E Args close_tag : {url, '$2', '$3', '$4'}.
@@ -448,10 +456,18 @@ Args -> Args identifier equal E : '$1' ++ [{'$2', '$4'}].
 Value -> Value pipe Filter : {apply_filter, '$1', '$3'}.
 Value -> TermValue : '$1'.
 
+MapFields -> '$empty' : [].
+MapFields -> MapFieldList : '$1'.
+MapFieldList -> MapField : [ '$1' ].
+MapFieldList -> MapFieldList comma MapField : ['$3' | '$1'].
+MapField -> identifier colon E : {'$1', '$3'}.
+
+
 TermValue -> '(' E ')' : '$2'.
 TermValue -> Variable : {find_value, '$1'}.
 TermValue -> Literal : '$1'.
 TermValue -> hash AutoId : {auto_id, '$2'}.
+TermValue -> '%' open_curly MapFields close_curly : {map_value, '$3'}.
 TermValue -> open_curly identifier Args close_curly : {tuple_value, '$2', '$3'}.
 TermValue -> open_bracket OptArrayList close_bracket : {value_list, '$2'}.
 
